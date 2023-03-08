@@ -1,0 +1,11 @@
+
+**/.git
+**/.github
+**/.vscode
+**/coverage
+**/docker-compose.yml
+# Node Files #
+node_modules
+**/node_modules
+**/npm-debug.log
+**/npm-debug.log.*

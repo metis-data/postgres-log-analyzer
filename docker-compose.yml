@@ -1,0 +1,29 @@
+version: '2.1'
+
+services:
+  db:
+    image: postgres:12.6-alpine
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - 5432:5432
+    # Make Postgres log to a file.
+    # More on logging with Postgres: https://www.postgresql.org/docs/current/static/runtime-config-logging.html
+    command: >
+      postgres -c logging_collector=on 
+      -c log_destination=csvlog 
+      -c log_directory=/logs 
+      -c log_rotation_age=0 
+      -c log_rotation_size=0 
+      -c log_filename='postgresql-%Y-%m-%d_%H%M%S.log'
+      -c session_preload_libraries=auto_explain 
+      -c auto_explain.log_min_duration=0
+      -c auto_explain.log_analyze=true 
+      -c auto_explain.log_timing=true 
+      -c auto_explain.log_buffers=true 
+      -c auto_explain.log_verbose=true 
+      -c auto_explain.log_nested_statements=true 
+      -c auto_explain.log_format=JSON
+      -c log_line_prefix='%m [%p] %u@%d/%a: '
+    volumes:
+      - ./logs:/logs
