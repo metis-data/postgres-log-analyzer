@@ -1,0 +1,9 @@
+app:
+  logsDir: /logs
+  appEnv: production
+  apiKey: ''
+  http:
+    provider: 
+      scheme: https
+      url: ingest.metisdata.io
+      port: 443
