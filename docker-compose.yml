@@ -1,6 +1,18 @@
 version: '2.1'
 
 services:
+  postgres-db-agent:
+    container_name: postgres-db-agent
+    environment: 
+      - APP_LOGS_DIR=/logs
+    volumes:
+      - ./logs:/logs
+    build:
+      context: .
+      target: prod
+    depends_on:
+      - db
+
   db:
     image: postgres:12.6-alpine
     environment:

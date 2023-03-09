@@ -1,4 +1,0 @@
-app:
-  logsDir: LOGS_DIR
-  appEnv: APP_ENV
-  apiKey: METIS_API_KEY
