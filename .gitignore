@@ -10,3 +10,4 @@ coverage
 *.log
 config/local.yml
 logs/*
+config/development.yml

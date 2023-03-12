@@ -12,6 +12,8 @@ import { logger } from "./logger";
 import { makeSpan } from "./make-span";
 import { mapHeadersFn as mapHeaders, mapValuesFn as mapValues } from "./utils";
 
+logger.info("config", { config, env: process.env.NODE_ENV });
+
 const MAX_BULK_ITEMS = 10;
 
 function parseFileWithSpwan(filePath: string) {

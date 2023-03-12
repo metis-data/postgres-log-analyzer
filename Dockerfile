@@ -8,11 +8,9 @@ ARG PORT=6000
 ENV PORT=${PORT}
 
 COPY package*.json .eslintrc.yml tsconfig.json tsconfig.build.json /app/
-RUN npm ci
+RUN npm ci --production
 
 COPY ./ /app/
-
-RUN npm prune --production
 
 ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}

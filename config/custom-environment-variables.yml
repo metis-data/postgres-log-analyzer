@@ -6,6 +6,6 @@ app:
   datadogApiKey: DATADOG_API_KEY
   sentryDsn: SENTRY_DSN
 http:
-  scheme: HTTP_SCHEME
-  url: HTTP_URL
-  port: HTTP_PORT
+  scheme: METIS_HTTP_SCHEME
+  url: METIS_HTTP_URL
+  port: METIS_HTTP_PORT

@@ -2,10 +2,10 @@ app:
   logLevel: info
   logsDir: /logs
   appEnv: development
-  datadogApiKey: ''
-  apiKey: 
+  datadogApiKey:
+  apiKey:
   sentryDsn: https://4e5ea6f2cf6d434f89678d3581ea4d84@o1173646.ingest.sentry.io/4504807948419072
 http:
   scheme: https
-  host: ingest-stg.metisdata.io
+  host: ingest.metisdata.io
   port: 443
