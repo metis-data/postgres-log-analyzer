@@ -7,7 +7,7 @@ WORKDIR /app
 ARG PORT=6000
 ENV PORT=${PORT}
 
-COPY package*.json .eslintrc.json tsconfig.json tsconfig.build.json /app/
+COPY package*.json .eslintrc.yml tsconfig.json tsconfig.build.json /app/
 RUN npm ci
 
 COPY ./ /app/
