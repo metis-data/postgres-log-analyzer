@@ -1,31 +1,16 @@
-import fs from "fs";
 import path from "path";
-import url from "url";
-import { ajax } from "rxjs/ajax";
 
-import csvParser from "csv-parser";
 import chokidar from "chokidar";
+import csvParser from "csv-parser";
 
-import {
-  debounceTime,
-  filter,
-  bufferTime,
-  mergeMap,
-  map,
-  switchMap,
-  mergeAll,
-  debounce,
-  groupBy,
-  catchError,
-  distinct
-} from "rxjs/operators";
-import { Observable, from, of, fromEvent, merge, EMPTY } from "rxjs";
-import { mapHeadersFn as mapHeaders, mapValuesFn as mapValues } from "./utils";
-import config from "config";
-import { logger } from "./logger";
-import { makeHttpRequest } from "./http";
 import { exec, spawn } from "child_process";
+import config from "config";
+import { EMPTY, fromEvent, Observable } from "rxjs";
+import { bufferTime, distinct, filter, map, switchMap } from "rxjs/operators";
+import { makeHttpRequest } from "./http";
+import { logger } from "./logger";
 import { makeSpan } from "./make-span";
+import { mapHeadersFn as mapHeaders, mapValuesFn as mapValues } from "./utils";
 
 const MAX_BULK_ITEMS = 10;
 
@@ -107,6 +92,8 @@ const backendUrl =
 const postSpans = (listOfItems: any[]) => {
   if (listOfItems.length === 0) return EMPTY;
 
+  logger.debug("Sending spans to backend", { count: listOfItems.length });
+
   return new Observable((observer) => {
     makeHttpRequest(backendUrl, "POST", listOfItems, {
       "x-api-key": apiKey,
@@ -152,18 +139,20 @@ const postSpans = (listOfItems: any[]) => {
   });
 };
 
-fromEvent(chokidar.watch(`${logsDir}/*.csv`), "all")
+fromEvent(chokidar.watch(`${logsDir}/*.csv`, { persistent: true }), "all")
   .pipe(
     filter((item) => {
       //   logger.debug("File detected", { file: item });
       return path.extname(item[1]) === ".csv";
     }),
-    map((item) => item[1]),
+    map((item) => {
+      return item[1];
+    }),
     distinct(),
     switchMap(parseFile),
     switchMap(postSpans)
   )
   .subscribe(
     (x) => logger.debug("Check", { x }),
-    (error) => logger.error("Debug error:", { error })
+    (error) => logger.error("Debug error:", { message: error.message })
   );

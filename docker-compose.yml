@@ -5,8 +5,9 @@ services:
     container_name: postgres-db-agent
     environment: 
       - APP_LOGS_DIR=/logs
-      - METIS_API_KEY="${METIS_API_KEY}"
-      - DATADOG_API_KEY="${DATADOG_API_KEY}"
+      - METIS_API_KEY=${METIS_API_KEY}
+      - DATADOG_API_KEY=${DATADOG_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-debug}
     volumes:
       - ./logs:/logs
       - ./src:/app/src
