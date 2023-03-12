@@ -10,9 +10,15 @@ const {
   logLevel,
   appEnv,
   datadogApiKey,
-  apiKey
-}: { logLevel: string; appEnv: string; datadogApiKey: string; apiKey: string } =
-  config.get("app");
+  apiKey,
+  prettyPrint
+}: {
+  logLevel: string;
+  appEnv: string;
+  datadogApiKey: string;
+  apiKey: string;
+  prettyPrint: "true" | "false";
+} = config.get("app");
 
 function _createLogger(componentName: string, logLevel = LogLevelEnum.INFO) {
   const logFormat = [
@@ -21,7 +27,10 @@ function _createLogger(componentName: string, logLevel = LogLevelEnum.INFO) {
     format.timestamp()
   ];
 
-  if (appEnv !== Environments.PRODUCTION && appEnv !== Environments.STAGING) {
+  if (
+    ["true", "1"].includes(prettyPrint ?? "") ||
+    (appEnv !== Environments.PRODUCTION && appEnv !== Environments.STAGING)
+  ) {
     logFormat.push(format.prettyPrint());
   } else {
     logFormat.push(format.json());

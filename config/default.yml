@@ -1,5 +1,6 @@
 app:
   logLevel: info
+  prettyPrint: false
   logsDir: /logs
   appEnv: development
   datadogApiKey:

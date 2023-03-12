@@ -4,10 +4,11 @@ services:
   postgres-db-agent:
     container_name: postgres-db-agent
     environment: 
+      - LOG_PRETTY_PRINT=true
       - APP_LOGS_DIR=/logs
       - METIS_API_KEY=${METIS_API_KEY}
       - DATADOG_API_KEY=${DATADOG_API_KEY}
-      - LOG_LEVEL=${LOG_LEVEL:-debug}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./logs:/logs
     build:

@@ -1,5 +1,6 @@
 app:
   logLevel: LOG_LEVEL
+  prettyPrint: LOG_PRETTY_PRINT
   logsDir: APP_LOGS_DIR
   appEnv: APP_ENV
   apiKey: METIS_API_KEY
