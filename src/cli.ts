@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-import { handle } from './main'
 
-handle()
+const [, , ...args] = process.argv;
+console.log(args);

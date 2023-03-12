@@ -1,112 +1,169 @@
-// call package read CSV file
 import fs from "fs";
-import csv from "csv-parser";
-import debounce from "lodash.debounce";
 import path from "path";
+import url from "url";
+import { ajax } from "rxjs/ajax";
+
+import csvParser from "csv-parser";
+import chokidar from "chokidar";
+
+import {
+  debounceTime,
+  filter,
+  bufferTime,
+  mergeMap,
+  map,
+  switchMap,
+  mergeAll,
+  debounce,
+  groupBy,
+  catchError,
+  distinct
+} from "rxjs/operators";
+import { Observable, from, of, fromEvent, merge, EMPTY } from "rxjs";
+import { mapHeadersFn as mapHeaders, mapValuesFn as mapValues } from "./utils";
 import config from "config";
+import { logger } from "./logger";
+import { makeHttpRequest } from "./http";
+import { exec, spawn } from "child_process";
+import { makeSpan } from "./make-span";
 
-console.log(config)
-  
-const filepath = path.join(
-  __dirname,
-  "../logs/postgresql-2023-03-06_213258.csv"
-);
+const MAX_BULK_ITEMS = 10;
 
+function parseFileWithSpwan(filePath: string) {
+  return new Observable((observer) => {
+    const tail = spawn("tail", ["-f", filePath]);
 
-export const setup = ({ logsDir }) => {
-  if(!fs.lstatSync(logsDir).isDirectory()){
-    throw new Error(`Logs diriectory is required: ${logsDir}`);
-  }
+    tail.stdout.on("data", (data) => {
+      console.log(`Received: ${data}`);
+    });
+
+    tail.stdout
+      .pipe(
+        csvParser({
+          mapHeaders,
+          mapValues
+        })
+      )
+      .on("data", (data) => {
+        console.log(`data: ${data}`);
+        observer.next(data);
+      });
+
+    tail.stderr.on("data", (data) => {
+      console.error(`Received error: ${data}`);
+      observer.error(data);
+    });
+
+    tail.on("close", (code) => {
+      console.log(`Child process exited with code ${code}`);
+      observer.complete();
+    });
+  });
 }
 
-const regexExtractDuration = /duration:\s+(\d+\.\d+)\s+ms/;
+function parseFile(filePath: string) {
+  logger.debug(`Parsing file: ${filePath}`);
 
-let lastPosition = 0; // keep track of last position in file
-
-let firstRun = true;
-
-export const handle = debounce(() => {
-  const readStream = fs.createReadStream(filepath, { start: lastPosition });
-  readStream
-    .pipe(
-      csv({
-        mapHeaders: ({ header: _, index }) => {
-          if (index === 0) {
-            return "endTime";
-          }
-          if (index === 1) {
-            return "user";
-          }
-          if (index === 2) {
-            return "database";
-          }
-          if (index === 7) {
-            return "action";
-          }
-          if (index === 8) {
-            return "startTime";
-          }
-          if (index === 11) {
-            return "logType";
-          }
-          if (index === 13) {
-            return "message";
-          }
-          if (index === 22) {
-            return "clientName";
-          }
-          return null;
-        },
-        mapValues: ({ header, index: _, value }) => {
-          if (header === "endTime" || header === "startTime") {
-            return new Date(value).toISOString();
-          }
-          if (header === "message") {
-            if (value.includes("plan:")) {
-              const splitted = value.split("plan:");
-              const jsonStr = JSON.parse(splitted[1]);
-
-              const match = regexExtractDuration.exec(splitted[0]);
-
-              let duration = 0;
-              if (match != null) {
-                duration = parseFloat(match[1]);
-              }
-
-              return {
-                duration,
-                query: `${jsonStr["Query Text"]}`,
-                plan: jsonStr.Plan
-              };
-            }
-          }
-
-          return value;
-        }
+  return new Observable((observer) => {
+    const tailCmd = `tail -n +1 -F ${filePath}`;
+    const tailProc = exec(tailCmd);
+    tailProc.stdout
+      .pipe(
+        csvParser({
+          mapHeaders,
+          mapValues
+        })
+      )
+      .on("error", (error) => {
+        observer.error(error);
       })
-    )
-    .on("data", (data) => {
-      // handle each new row of data here
-      console.log(data);
-    })
-    .on("error", (error) => {
-      // handle errors here
-      console.error(error);
-    })
-    .on("end", () => {
-      // update last position in file
-      lastPosition = fs.statSync(filepath).size;
-      if (firstRun) {
-        firstRun = false;
-        fs.watch(filepath, (event, _filename) => {
-          if (event === "change") {
-            handle();
-          }
-        });
-      }
+      .on("data", (data) => {
+        observer.next(data);
+      })
+      .on("close", () => {
+        return observer.complete();
+      });
+  }).pipe(
+    filter(
+      (csvItem) =>
+        csvItem["logType"] === "LOG" &&
+        Object.prototype.toString.call(csvItem["message"]) === "[object Object]"
+    ),
+    map(makeSpan),
+    bufferTime(5000, null, MAX_BULK_ITEMS)
+  );
+}
 
-      console.log("End of file");
-    });
-}, 1000);
+const logsDir: string = path.resolve(config.get("app.logsDir"));
+const apiKey: string = config.get("app.apiKey");
+const httpConfig: any = config.get("http");
 
-handle();
+// @ts-ignore
+const backendUrl =
+  httpConfig.port === 443
+    ? `${httpConfig.scheme}://${httpConfig.host}/`
+    : `${httpConfig.scheme}://${httpConfig.host}:${httpConfig.port}/`;
+
+const postSpans = (listOfItems: any[]) => {
+  if (listOfItems.length === 0) return EMPTY;
+
+  return new Observable((observer) => {
+    makeHttpRequest(backendUrl, "POST", listOfItems, {
+      "x-api-key": apiKey,
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    })
+      .then((response) => {
+        observer.next(response.data);
+        observer.complete();
+      })
+      .catch((error) => {
+        if (error.response) {
+          const headers = Object.keys(error.response.headers)
+            .filter((key) => key.startsWith("x-amzn"))
+            .reduce((obj, key) => {
+              obj[key] = error.response.headers[key];
+              return obj;
+            }, {});
+
+          // Request made and server responded
+          logger.error("Request made and server responded with error", {
+            data: error.response.data,
+            status: error.response.status,
+            headers,
+            error: {
+              code: error.code,
+              message: error.message
+            }
+          });
+        } else {
+          // Request made and server responded
+          logger.error(
+            "Something happened in setting up the request that triggered an error",
+            {
+              message: error.message,
+              code: error.code
+            }
+          );
+        }
+        observer.error(error);
+        observer.complete();
+      });
+  });
+};
+
+fromEvent(chokidar.watch(`${logsDir}/*.csv`), "all")
+  .pipe(
+    filter((item) => {
+      //   logger.debug("File detected", { file: item });
+      return path.extname(item[1]) === ".csv";
+    }),
+    map((item) => item[1]),
+    distinct(),
+    switchMap(parseFile),
+    switchMap(postSpans)
+  )
+  .subscribe(
+    (x) => logger.debug("Check", { x }),
+    (error) => logger.error("Debug error:", { error })
+  );
