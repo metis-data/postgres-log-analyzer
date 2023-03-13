@@ -8,7 +8,8 @@ Detecting your slow queries: The tool can identify slow queries in the log file 
 ## Get Api Key
 Please sign up into: https://www.metisdata.io/ and grab your project API Key
 
-## Run Docker compose 
+## Installation
+The Postgres Log Analyzer is available as a docker container on Dockerhub, so you can run it using docker-compose or docker run command:
 
 ```bash
 export METIS_API_KEY=xxxxx
