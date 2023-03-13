@@ -2,6 +2,7 @@ version: '2.1'
 
 services:
   postgres-db-agent:
+    image: metisdataa/postgres-log-analyzer:latest
     container_name: postgres-db-agent
     environment: 
       - LOG_PRETTY_PRINT=true
