@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { getPackageVersion } from "./utils";
+import { getPackageVersion } from "../utils";
 import config from "config";
 
 const { sentryDsn, appEnv }: { sentryDsn: string; appEnv: string } =

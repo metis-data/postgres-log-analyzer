@@ -3,56 +3,22 @@ import path from "path";
 import chokidar from "chokidar";
 import csvParser from "csv-parser";
 
-import { exec, spawn } from "child_process";
+import { exec } from "child_process";
 import config from "config";
 import { EMPTY, fromEvent, Observable } from "rxjs";
 import { bufferTime, distinct, filter, map, switchMap } from "rxjs/operators";
-import { makeHttpRequest } from "./http";
+import { makeHttpRequest } from "./processor/http";
 import { logger } from "./logger";
-import { makeSpan } from "./make-span";
+import { makeSpan } from "./processor/make-span";
 import { mapHeadersFn as mapHeaders, mapValuesFn as mapValues } from "./utils";
+import { setup } from "./setup";
+import { MAX_BULK_ITEMS, MAX_ITEMS_IN_BULK } from "./consts";
 
-logger.info("config", { config, env: process.env.NODE_ENV });
-
-const MAX_BULK_ITEMS = 10;
-
-function parseFileWithSpwan(filePath: string) {
-  return new Observable((observer) => {
-    const tail = spawn("tail", ["-f", filePath]);
-
-    tail.stdout.on("data", (data) => {
-      console.log(`Received: ${data}`);
-    });
-
-    tail.stdout
-      .pipe(
-        csvParser({
-          mapHeaders,
-          mapValues
-        })
-      )
-      .on("data", (data) => {
-        console.log(`data: ${data}`);
-        observer.next(data);
-      });
-
-    tail.stderr.on("data", (data) => {
-      console.error(`Received error: ${data}`);
-      observer.error(data);
-    });
-
-    tail.on("close", (code) => {
-      console.log(`Child process exited with code ${code}`);
-      observer.complete();
-    });
-  });
-}
-
-function parseFile(filePath: string) {
-  logger.debug(`Parsing file: ${filePath}`);
+function parseFile(filepath: string) {
+  logger.info("Watching log file", { filepath });
 
   return new Observable((observer) => {
-    const tailCmd = `tail -n +1 -F ${filePath}`;
+    const tailCmd = `tail -n +1 -F ${filepath}`;
     const tailProc = exec(tailCmd);
     tailProc.stdout
       .pipe(
@@ -77,7 +43,11 @@ function parseFile(filePath: string) {
         Object.prototype.toString.call(csvItem["message"]) === "[object Object]"
     ),
     map(makeSpan),
-    bufferTime(5000, null, MAX_BULK_ITEMS)
+    bufferTime(
+      config.get<number>("processor.bufferInMs") || MAX_ITEMS_IN_BULK,
+      null,
+      config.get<number>("processor.maxItemsInBulk") || MAX_BULK_ITEMS
+    )
   );
 }
 
@@ -141,20 +111,26 @@ const postSpans = (listOfItems: any[]) => {
   });
 };
 
-fromEvent(chokidar.watch(`${logsDir}/*.csv`, { persistent: true }), "all")
-  .pipe(
-    filter((item) => {
-      //   logger.debug("File detected", { file: item });
-      return path.extname(item[1]) === ".csv";
-    }),
-    map((item) => {
-      return item[1];
-    }),
-    distinct(),
-    switchMap(parseFile),
-    switchMap(postSpans)
-  )
-  .subscribe(
-    (x) => logger.debug("Check", { x }),
-    (error) => logger.error("Debug error:", { message: error.message })
-  );
+function main() {
+  setup();
+
+  fromEvent(chokidar.watch(`${logsDir}/*.csv`, { persistent: true }), "all")
+    .pipe(
+      filter((item) => {
+        return path.extname(item[1]) === ".csv";
+      }),
+      map((item) => {
+        const filename = item[1];
+        return filename;
+      }),
+      distinct(),
+      switchMap(parseFile),
+      switchMap(postSpans)
+    )
+    .subscribe(
+      (x) => logger.debug("Check", { x }),
+      (error) => logger.error("Debug error:", { message: error.message })
+    );
+}
+
+main();
