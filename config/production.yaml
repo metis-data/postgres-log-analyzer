@@ -2,6 +2,9 @@ app:
   logLevel: info
   logsDir: /logs
   appEnv: production
+processor:
+  bufferInMs: 5000
+  maxItemsInBulk: 100
 http:
   scheme: https
   host: ingest.metisdata.io

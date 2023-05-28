@@ -1,4 +1,4 @@
-import { DEFAULT_REQUEST_TIMEOUT_IN_SEC } from "./consts";
+import { DEFAULT_REQUEST_TIMEOUT_IN_SEC } from "../consts";
 import axios from "axios";
 
 export const makeHttpRequest = (

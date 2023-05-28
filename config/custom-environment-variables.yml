@@ -6,6 +6,9 @@ app:
   apiKey: METIS_API_KEY
   datadogApiKey: DATADOG_API_KEY
   sentryDsn: SENTRY_DSN
+processor:
+  bufferInMs: METIS_PROCESSOR_BUFFER_IN_MS
+  maxItemsInBulk: METIS_PROCESSOR_BULK_MAX_ITEMS
 http:
   scheme: METIS_HTTP_SCHEME
   url: METIS_HTTP_URL

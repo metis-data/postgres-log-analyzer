@@ -1,4 +1,4 @@
-import { getPackageVersion } from "./utils";
+import { getPackageVersion } from "../utils";
 import { v4 as uuidv4 } from "uuid";
 import os from "os";
 let resource: object;

@@ -1,7 +1,7 @@
 import fs from "fs";
 
 import config from "config";
-import { logger } from "./logger/logging";
+import { logger } from "../logger/logger";
 import { initSentry } from "./sentry";
 
 const REQUIRED_FIELDS = [
@@ -12,6 +12,8 @@ const REQUIRED_FIELDS = [
 ];
 
 export const setup = () => {
+  logger.debug({ config, env: process.env.NODE_ENV });
+
   REQUIRED_FIELDS.forEach((configProp: { fieldName: string; msg: string }) => {
     if (!config.get(configProp.fieldName)) {
       throw new Error(`${configProp.msg} is not defined. We cannot continue.`);
